@@ -1,0 +1,50 @@
+# Replace every placeholder with a customer-approved value before planning.
+aws_account_id    = "123456789012"
+aws_region        = "us-east-1"
+environment       = "nonprod"
+cluster_name      = "example-ai-gateway"
+kubernetes_version = "1.33" # Example only: verify current EKS and gateway support.
+
+vpc_cidr             = "10.80.0.0/16"
+availability_zones   = ["us-east-1a", "us-east-1b"]
+public_subnet_cidrs  = ["10.80.0.0/24", "10.80.1.0/24"]
+private_subnet_cidrs = ["10.80.10.0/24", "10.80.11.0/24"]
+
+# Private API access is always enabled. Example: ["203.0.113.10/32"].
+endpoint_public_access_cidrs = []
+
+# Supply at least one approved IAM principal or explicitly enable creator admin.
+cluster_admin_principal_arns = []
+
+# Optional for an isolated, non-HA lab; use per-AZ NAT for resilient designs.
+single_nat_gateway = false
+
+# Enable only after STS approves the namespace, ServiceAccount, and model ARNs.
+enable_ai_gateway_pod_identity        = false
+ai_gateway_data_plane_namespace       = "kong"
+ai_gateway_data_plane_service_account = "kong-dp"
+bedrock_model_arns                    = []
+inference_profile_arns                = []
+
+# Optional Secrets Manager metadata; populate values outside Terraform.
+# Requires enable_ai_gateway_pod_identity = true. The key is a Terraform label.
+secrets_manager_secrets = {}
+# Optional: authorize GetSecretValue for existing and future secrets under an
+# explicitly approved prefix in this account and region. Do not use wildcards.
+secrets_manager_read_prefix          = null
+secrets_manager_prefix_kms_key_arns = []
+# Example: secrets_manager_read_prefix = "example-ai-gateway/nonprod/"
+# Example:
+# secrets_manager_secrets = {
+#   gateway_credentials = {
+#     name                    = "example-ai-gateway/nonprod/provider-credentials"
+#     description             = "Data plane credential container"
+#     recovery_window_in_days = 30
+#     # Optional customer-managed key ARN; omit for aws/secretsmanager.
+#     # kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/KEY-ID"
+#   }
+# }
+
+tags = {
+  Project = "ai-gateway"
+}
