@@ -127,7 +127,18 @@ variable "kong_proxy_service_type" {
 }
 
 variable "kong_proxy_acm_certificate_arn" {
-  description = "ACM certificate ARN for the optional public NLB TLS listener; required with LoadBalancer."
+  description = "ACM certificate ARN for the NLB TLS listener; required with LoadBalancer."
   type        = string
   default     = ""
+}
+
+variable "kong_proxy_nlb_scheme" {
+  description = "NLB scheme: internal for private access, or internet-facing for an approved public lab."
+  type        = string
+  default     = "internal"
+
+  validation {
+    condition     = contains(["internal", "internet-facing"], var.kong_proxy_nlb_scheme)
+    error_message = "Use internal or internet-facing for the NLB scheme."
+  }
 }

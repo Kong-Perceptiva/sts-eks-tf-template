@@ -1,0 +1,10 @@
+# EKS Pod Identity supplies temporary AWS credentials; no static keys.
+ai_gateway_model_providers:
+  - ref: bedrock
+    ai_gateway: !lookup {id: !env AI_GATEWAY_ID}
+    name: bedrock
+    display_name: Amazon Bedrock
+    type: bedrock
+    config:
+      auth:
+        type: aws

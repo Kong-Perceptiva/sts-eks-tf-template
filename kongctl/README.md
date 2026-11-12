@@ -4,6 +4,14 @@
 
 These files are independent of Terraform. They illustrate an existing or new hybrid AI Gateway, an AWS Secrets Manager vault, an OpenAI provider, a short-lived application credential, and a logical `sts-chat` model. OpenAI and this model are lab examples, not approved STS production decisions. The intended customer use case is Bedrock; its exact model and access remain subject to approval.
 
+## Contents
+
+- [Files and order](#files-and-order)
+- [Prerequisites and example commands](#prerequisites-and-example-commands)
+- [Apply child objects together](#apply-child-objects-together)
+- [Bedrock validation example](#bedrock-validation-example)
+- [Example synthetic request](#example-synthetic-request)
+
 ## Files and order
 
 1. `00-ai-gateway-control-plane.yaml`: example for creating a **new** control plane and registering a public certificate. It reads `certs/data-plane.crt` relative to this file. Generate the certificate and key separately; do not commit the key. Set a unique name and namespace before use.
@@ -11,6 +19,8 @@ These files are independent of Terraform. They illustrate an existing or new hyb
 3. `20-provider-openai.yaml`: provider whose write-only Authorization field receives a vault reference, not the OpenAI credential itself.
 4. `30-application-consumer.yaml`: key-auth strategy, consumer and one-hour application key.
 5. `40-model-sts-chat.yaml`: logical model targeting `gpt-4o-mini`; select an approved model before use.
+
+For the intended Bedrock path, `20-provider-bedrock.yaml` and `40-model-bedrock.yaml` provide an alternative provider and model; they reuse the `sts-key-auth` strategy from `30-application-consumer.yaml`.
 
 **Ownership:** `00` is only for a new gateway managed by `kongctl`. Do not apply it to an existing Terraform-managed gateway or adopt that gateway without a separately reviewed ownership migration. For an existing gateway, skip `00` and use its ID for files 10–40. Use `apply`, not `sync`, for these partial examples; review each scoped diff before applying.
 
@@ -44,15 +54,27 @@ export STS_TEST_APP_KEY="$(openssl rand -hex 24)"
 
 The encoded `%2F` is part of the Secrets Manager secret name in the vault reference. Keep the temporary application key for the test; it is distinct from the OpenAI key. It expires after one hour. Avoid shell tracing and protect the process environment.
 
-From this directory, review and apply one file at a time, for example:
+The provider and application credential contain write-only fields. A diff should show an intentional secret write without revealing the value; do not use `--write-secrets` broadly. Calls to OpenAI can incur charges. Never use production personal data.
+
+## Apply child objects together
+
+After the control plane exists and `AI_GATEWAY_ID`, `OPENAI_VAULT_REFERENCE`, and `STS_TEST_APP_KEY` are set as above, you can pass the four child files together. Review the complete diff, especially the target gateway, secret writes, and creation order, before applying:
 
 ```bash
-kongctl diff --mode apply -f 10-aws-secrets-manager-vault.yaml
-kongctl apply -f 10-aws-secrets-manager-vault.yaml
-# Repeat for 20, 30, and 40 in order, reviewing each diff.
+kongctl diff --mode apply \
+  -f 10-aws-secrets-manager-vault.yaml \
+  -f 20-provider-openai.yaml \
+  -f 30-application-consumer.yaml \
+  -f 40-model-sts-chat.yaml
+
+kongctl apply \
+  -f 10-aws-secrets-manager-vault.yaml \
+  -f 20-provider-openai.yaml \
+  -f 30-application-consumer.yaml \
+  -f 40-model-sts-chat.yaml
 ```
 
-The provider and application credential contain write-only fields. A diff should show an intentional secret write without revealing the value; do not use `--write-secrets` broadly. Verify the data plane can resolve the vault reference without printing the result, then verify an unauthenticated synthetic request is rejected and an authenticated synthetic request succeeds. Calls to OpenAI can incur charges. Never use production personal data. A successful configuration apply alone proves neither vault retrieval nor inference.
+Run these commands from this directory. This combines the child configuration in one invocation; it does **not** create the control plane. Each child uses `!lookup` against an already existing gateway ID. Do not include `00` in this invocation or use `sync` on a partial configuration. The ordered, separate-file workflow remains the tested approach; review the combined plan and dependency order before using it on new objects. Do not use `--write-secrets` unless an intentional write-only field update has been reviewed.
 
 ## Example synthetic request
 
@@ -66,3 +88,29 @@ curl -sS "$PROXY_URL/v1/chat/completions" \
 ```
 
 Expect a `401` without an application key. Repeat with `-H "apikey: $STS_TEST_APP_KEY"`; a successful response verifies that Kong accepted the key and the upstream call completed. Protect process arguments and avoid running this on a shared host where other users can inspect them. An upstream `401`, `429`, timeout or other error requires separate diagnosis and must not be reported as a successful inference. Rotate expired application credentials through an approved process; do not assume reapplying a create-only credential replaces its key.
+
+## Bedrock validation example
+
+The data plane must be connected and use the intended EKS Pod Identity role. Approve the actual Bedrock model or inference profile, region, model access, data residency and IAM ARNs first; set `bedrock_model_arns` and, where relevant, `inference_profile_arns` in Terraform. Cross-region profiles may also require foundation-model ARNs in destination regions. Verify account access and the AWS SDK credential chain in the selected AI Gateway runtime. The Bedrock provider uses `type: aws` without static credentials.
+
+Create the key-auth strategy and consumer using `30-application-consumer.yaml` first, or use a separately approved existing strategy named `sts-key-auth`. From this directory set the already existing gateway ID and select an approved target; the example ID below is a lab model, **not an STS-approved choice**:
+
+```bash
+export AI_GATEWAY_ID="<existing-gateway-id>"
+export AWS_REGION="us-east-1"
+export BEDROCK_MODEL_ID="amazon.nova-micro-v1:0"
+kongctl diff --mode apply -f 20-provider-bedrock.yaml -f 40-model-bedrock.yaml
+kongctl apply -f 20-provider-bedrock.yaml -f 40-model-bedrock.yaml
+```
+
+The diff must contain only the intended provider and model. `!env` values resolve again at apply time; keep the same reviewed environment. The target is a model ID or profile ID, **not its IAM ARN**. After configuration propagates, use an approved proxy endpoint and application key to send a synthetic request:
+
+```bash
+export PROXY_URL="https://<approved-proxy-host>"
+curl -sS "$PROXY_URL/v1/chat/completions" \
+  -H 'Content-Type: application/json' \
+  -H "apikey: $STS_TEST_APP_KEY" \
+  -d '{"model":"sts-bedrock-chat","messages":[{"role":"user","content":"Say hello"}],"max_tokens":32}'
+```
+
+Remove the `apikey` header to check that an unauthenticated request returns 401. Protect process arguments on shared hosts and use a trusted TLS certificate. A successful response proves the selected Bedrock route, not fallback, streaming, or other models; calls may incur AWS charges. In one lab, this configuration returned 401 without an application key and 200 with a valid key using `amazon.nova-micro-v1:0` and Pod Identity. STS must validate its approved model and environment separately.

@@ -115,7 +115,7 @@ resource "helm_release" "ai_gateway_data_plane" {
       loadBalancerClass = var.kong_proxy_service_type == "LoadBalancer" ? "eks.amazonaws.com/nlb" : ""
       http              = { enabled = var.kong_proxy_service_type != "LoadBalancer" }
       annotations = var.kong_proxy_service_type == "LoadBalancer" ? {
-        "service.beta.kubernetes.io/aws-load-balancer-scheme"           = "internet-facing"
+        "service.beta.kubernetes.io/aws-load-balancer-scheme"           = var.kong_proxy_nlb_scheme
         "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type"  = "ip"
         "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"         = var.kong_proxy_acm_certificate_arn
         "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"        = "443"

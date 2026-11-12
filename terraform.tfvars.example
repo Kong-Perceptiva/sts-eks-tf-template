@@ -41,9 +41,10 @@ enable_kong_ai_gateway = false
 # konnect_telemetry_host                  = "example.us.tp.konghq.com"
 # kong_data_plane_public_certificate_path = "/secure/path/public-cert.pem"
 # kong_data_plane_private_key_path        = "/secure/path/private-key.pem"
-# Optional public NLB for an approved lab; validate Auto Mode backend TLS.
+# Recommended NLB for private access; validate the network and backend TLS.
 # kong_proxy_service_type         = "LoadBalancer"
 # kong_proxy_acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/EXAMPLE"
+# kong_proxy_nlb_scheme           = "internal" # Use internet-facing only for an approved public lab.
 
 # Optional Secrets Manager metadata; populate values outside Terraform.
 # Requires enable_ai_gateway_pod_identity = true. The key is a Terraform label.
