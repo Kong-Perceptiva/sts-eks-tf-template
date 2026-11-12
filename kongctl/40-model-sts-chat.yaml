@@ -1,0 +1,22 @@
+ai_gateway_models:
+  - ref: sts-chat
+    ai_gateway: !lookup {id: !env AI_GATEWAY_ID}
+    type: model
+    name: sts-chat
+    display_name: STS chat (OpenAI example)
+    capabilities: [generate]
+    formats: [{type: openai}]
+    access:
+      auth_strategies: [sts-key-auth]
+    config:
+      route:
+        paths: [/v1]
+        model:
+          body_param: model
+          values: [sts-chat]
+    targets:
+      - name: gpt-4o-mini
+        provider: openai
+        config:
+          type: openai
+    policies: []

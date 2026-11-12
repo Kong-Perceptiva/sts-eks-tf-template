@@ -1,0 +1,14 @@
+# Example for a NEW gateway. Do not apply to a Terraform-owned gateway.
+# Create certs/data-plane.crt before using this file; never put the key here.
+_defaults:
+  kongctl:
+    namespace: ai-gateway-example
+ai_gateways:
+  - ref: ai-gateway-example
+    name: ai-gateway-example
+    display_name: AI Gateway Example
+    deployment_type: hybrid
+    data_plane_certificates:
+      - ref: data-plane-cert
+        title: data-plane-cert
+        cert: !file ./certs/data-plane.crt

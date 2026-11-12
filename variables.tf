@@ -33,6 +33,34 @@ variable "kubernetes_version" {
   type        = string
 }
 
+variable "eks_control_plane_log_types" {
+  description = "EKS control-plane log types to send to CloudWatch Logs. An empty list disables control-plane logging."
+  type        = set(string)
+  default     = ["api", "audit", "authenticator"]
+
+  validation {
+    condition     = alltrue([for log_type in var.eks_control_plane_log_types : contains(["api", "audit", "authenticator", "controllerManager", "scheduler"], log_type)])
+    error_message = "Use only EKS control-plane log types: api, audit, authenticator, controllerManager, scheduler."
+  }
+}
+
+variable "eks_control_plane_log_retention_days" {
+  description = "CloudWatch retention in days for the EKS control-plane log group."
+  type        = number
+  default     = 90
+
+  validation {
+    condition     = contains([1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653], var.eks_control_plane_log_retention_days)
+    error_message = "Use a CloudWatch Logs supported retention period in days."
+  }
+}
+
+variable "eks_cluster_deletion_protection" {
+  description = "Prevent accidental EKS cluster deletion until explicitly disabled."
+  type        = bool
+  default     = false
+}
+
 variable "vpc_cidr" {
   description = "Non-overlapping IPv4 VPC CIDR approved by the network team."
   type        = string

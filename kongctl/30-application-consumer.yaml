@@ -1,0 +1,21 @@
+ai_gateway_auth_strategies:
+  - ref: sts-key-auth
+    ai_gateway: !lookup {id: !env AI_GATEWAY_ID}
+    name: sts-key-auth
+    type: key-auth
+    config:
+      key_names: [apikey]
+      key_in_header: true
+      hide_credentials: true
+ai_gateway_consumers:
+  - ref: sts-test-app
+    ai_gateway: !lookup {id: !env AI_GATEWAY_ID}
+    name: sts-test-app
+    type: api-key
+    credentials:
+      - ref: sts-test-app-key-hour
+        name: sts-test-app-key-hour
+        display_name: One-hour test key
+        type: api-key
+        ttl: 3600
+        api_key: !secret {source: !env STS_TEST_APP_KEY}

@@ -1,9 +1,14 @@
 # Replace every placeholder with a customer-approved value before planning.
-aws_account_id    = "123456789012"
-aws_region        = "us-east-1"
-environment       = "nonprod"
-cluster_name      = "example-ai-gateway"
+aws_account_id     = "123456789012"
+aws_region         = "us-east-1"
+environment        = "nonprod"
+cluster_name       = "example-ai-gateway"
 kubernetes_version = "1.33" # Example only: verify current EKS and gateway support.
+
+# Review logging, retention, and deletion protection with STS operations.
+eks_control_plane_log_types          = ["api", "audit", "authenticator"]
+eks_control_plane_log_retention_days = 90
+eks_cluster_deletion_protection      = false
 
 vpc_cidr             = "10.80.0.0/16"
 availability_zones   = ["us-east-1a", "us-east-1b"]
@@ -19,6 +24,9 @@ cluster_admin_principal_arns = []
 # Optional for an isolated, non-HA lab; use per-AZ NAT for resilient designs.
 single_nat_gateway = false
 
+# STS discovery named Claude Opus 5, Sonnet 5 and Haiku 5 on Bedrock.
+# Confirm exact model/profile ARNs, account access, and data residency first;
+# these discovery names do not automatically grant invocation permissions.
 # Enable only after STS approves the namespace, ServiceAccount, and model ARNs.
 enable_ai_gateway_pod_identity        = false
 ai_gateway_data_plane_namespace       = "kong"
@@ -26,14 +34,25 @@ ai_gateway_data_plane_service_account = "kong-dp"
 bedrock_model_arns                    = []
 inference_profile_arns                = []
 
+# Optional Helm data plane for an existing Konnect AI Gateway.
+# Terraform creates the namespace and TLS Secret; private key enters state.
+enable_kong_ai_gateway = false
+# konnect_control_plane_host              = "example.us.cp.konghq.com"
+# konnect_telemetry_host                  = "example.us.tp.konghq.com"
+# kong_data_plane_public_certificate_path = "/secure/path/public-cert.pem"
+# kong_data_plane_private_key_path        = "/secure/path/private-key.pem"
+# Optional public NLB for an approved lab; validate Auto Mode backend TLS.
+# kong_proxy_service_type         = "LoadBalancer"
+# kong_proxy_acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/EXAMPLE"
+
 # Optional Secrets Manager metadata; populate values outside Terraform.
 # Requires enable_ai_gateway_pod_identity = true. The key is a Terraform label.
 secrets_manager_secrets = {}
 # Optional: authorize GetSecretValue for existing and future secrets under an
 # explicitly approved prefix in this account and region. Do not use wildcards.
-secrets_manager_read_prefix          = null
+secrets_manager_read_prefix         = null
 secrets_manager_prefix_kms_key_arns = []
-# Example: secrets_manager_read_prefix = "example-ai-gateway/nonprod/"
+# Example: secrets_manager_read_prefix = "kong-ai-non-prod/"
 # Example:
 # secrets_manager_secrets = {
 #   gateway_credentials = {

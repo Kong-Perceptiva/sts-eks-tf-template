@@ -23,6 +23,10 @@ module "ai_gateway_eks_auto" {
   vpc_id             = module.ai_gateway_vpc.vpc_id
   subnet_ids         = module.ai_gateway_vpc.private_subnets
 
+  enabled_log_types                      = sort(tolist(var.eks_control_plane_log_types))
+  cloudwatch_log_group_retention_in_days = var.eks_control_plane_log_retention_days
+  deletion_protection                    = var.eks_cluster_deletion_protection
+
   authentication_mode                      = "API"
   enable_cluster_creator_admin_permissions = var.enable_cluster_creator_admin_permissions
   access_entries                           = local.eks_cluster_admin_access_entries
